@@ -34,23 +34,25 @@ for i in range(df.shape[0]):
 
 
 # STEP 1
-# check whether the sensor_value of each sensor follows the pattern of 0101010 or not
+# check whether the sensor_value of each sensor (local) follows the pattern of 0101010 or not
 # if not then swap
-each_sensor_rows = df.index[df["sensor_id"] == "45570"].tolist()
+local_rows = df.index[df["sensor_id"] == "45570"].tolist()
 
-each_sensor_sval = []
-for row in each_sensor_rows:
+local_sval = []
+for row in local_rows:
     sval = int(df.loc[row, "sensor_value"])
-    each_sensor_sval.append(sval)
+    local_sval.append(sval)
 
-print(each_sensor_rows)
-print(each_sensor_sval)
+print("Row number", local_rows)
+print("Sensor values", local_sval)
 
-incorrect_indices = []
-for i in range(1, len(each_sensor_sval)):
-    if each_sensor_sval[i] == each_sensor_sval[i-1]:
-        incorrect_indices.append(i)
-print(incorrect_indices)  
+local_incorrect_row = []
+for i in range(1, len(local_sval)):
+    if local_sval[i] == local_sval[i-1]:
+        local_incorrect_row.append(i)
+
+global_incorrect_row = [row for x, row in zip(local_incorrect_row, local_rows)]
+print("Row number (incorrect sensor values)", global_incorrect_row)  
 
 # compare the columns sensor_id and sid
 # sid_diff_arr = (df["sensor_id"] != df["sid"]).tolist()
@@ -58,7 +60,7 @@ print(incorrect_indices)
 # print("Rows where calculated sensor_id does not match actual sensor_id:", sid_diff_rows)
 # print(df.shape[0])
 
-# each_sensor_arr = [[each_sensor_rows[i], each_sensor_sval[i]] for i in range(len(each_sensor_rows))]
+# local_arr = [[local_rows[i], local_sval[i]] for i in range(len(local_rows))]
 
 
 
