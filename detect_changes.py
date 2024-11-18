@@ -4,7 +4,7 @@ from dicts import *
 def get_status_bin(row):
     return str(df["status_bin"].values[row])
 
-stv_num = 11
+stv_num = 10
 bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
@@ -33,10 +33,10 @@ for i in range(df.shape[0]):
     # print(f"{prev_status_bin}, {curr_status_bin}", reversed_changed_bit)
 
 
-
-# check whether sensor_value follow the pattern of 0101010 or not
-# if not swap between same sensor 11-0
-each_sensor_rows = df.index[df["sensor_id"] == "45600"].tolist()
+# STEP 1
+# check whether the sensor_value of each sensor follows the pattern of 0101010 or not
+# if not then swap
+each_sensor_rows = df.index[df["sensor_id"] == "45570"].tolist()
 
 each_sensor_sval = []
 for row in each_sensor_rows:
