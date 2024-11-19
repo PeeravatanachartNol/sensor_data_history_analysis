@@ -7,14 +7,15 @@ bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
 df = df.sort_values(by=["timestamp", "sensor_id"])
 
-# STEP 1
-# apply row swaps unril sensor_value follows [0,1,0,1,0, ...] pattern
+
 for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
     print(">>> Sensor ID", sid, "Bit", bit, "<<<")
     print("sensor_value START", sval_arr)
 
+    # STEP 1
+    # apply row swaps until sensor_value follows [0,1,0,1,0, ...] pattern
     # get incorrect indices locally
     incorrect_local_indices = []
     swapped = True
@@ -33,8 +34,8 @@ for bit, sid in bit_to_sid.items():
 
     print("sensor_value END", sval_arr)
     print("Incorrect indices local", incorrect_local_indices)
-    print("--------------------------------------------------")
 
+    # STEP 2
     # map incorrect_local_indices to df rows
     # but before swapping, check whether the row below has a similar timestamp or not
     # if there is, swap that entry as well
@@ -44,11 +45,13 @@ for bit, sid in bit_to_sid.items():
     # 3 and 12 swap would result in the order 3, 1, 2, 4
     # 3 and 1 swap would result in the order 3, 2, 1, 4
 
-    for j in range(0, len(incorrect_local_indices), 2):
-        first_row = sensor_df.index[j]
-        second_row = sensor_df.index[j] + 1
-        third_row = sensor_df.index[j+1]
-        fourth_row = sensor_df.index[j+1] + 1
+
+    # THIS NEEDS FIXING
+    for idx, loc in enumerate(range(0, len(incorrect_local_indices), 2)):
+        first_row = sensor_df.index[loc]
+        second_row = sensor_df.index[loc] + 1
+        third_row = sensor_df.index[loc+1]
+        fourth_row = sensor_df.index[loc+1] + 1
         print("+++++++++++++++++++++++++Rows", first_row, second_row, third_row, fourth_row)
 
         temp = df.iloc[[first_row, second_row, third_row, fourth_row]].copy()
@@ -70,7 +73,8 @@ for bit, sid in bit_to_sid.items():
             else:
                 df.iloc[third_row] = temp.iloc[0]
 
-        print("Swapped rows", first_row, second_row)
+        print("Swapped rows", first_row, third_row)
+    print("--------------------------------------------------")
 
 
 
