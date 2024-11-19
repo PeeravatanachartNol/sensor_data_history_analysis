@@ -15,30 +15,43 @@ for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
     print(">>> Sensor ID", sid, "Bit", bit, "<<<")
-    print("sensor_value", sval_arr) # print here before swap in array
+    print("sensor_value START", sval_arr) # print here before swap in array
 
     incorrect_local_indices = []
-    for i in range(len(sval_arr) - 1): # ignore last term
-        prev_sval = 1 if i==0 else sval_arr[i-1]
+    swapped = True
+    while swapped:
+        swapped = False
+        for i in range(len(sval_arr) - 1): # ignore last term
+            prev_sval = 1 if i==0 else sval_arr[i-1]
 
-        if sval_arr[i] == prev_sval:
-            # looping sval swap until arr follow 0101010 pattern
-            sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
-            incorrect_local_indices.append(i)
-            incorrect_local_indices.append(i+1)                                    
+            if sval_arr[i] == prev_sval:
+                # looping swap until arr follow 0101010 pattern
+                sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
+                # swapped = True
+                print("Swapped", i, i+1)
 
-    incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
-    total_incorrect_indices.extend(incorrect_indices)
-    print("Incorrect indices local", incorrect_local_indices)
-    print("Incorrect indices", incorrect_indices)
+                first_row, second_row = sensor_df.index[i], sensor_df.index[i+1]
+                temp = df.iloc[first_row].copy()
+                df.iloc[first_row] = df.iloc[second_row]
+                df.iloc[second_row] = temp
+                swapped = True
+                print("Swapped rows", first_row, second_row)
+                # incorrect_local_indices.append(i)
+                # incorrect_local_indices.append(i+1)
+    print("sensor_value END", sval_arr) # print after swaps in array
+
+    # incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
+    # total_incorrect_indices.extend(incorrect_indices)
+    # print("Incorrect indices local", incorrect_local_indices)
+    # print("Incorrect indices", incorrect_indices)
 
     # perform row swaps
-    for i in range(0, len(incorrect_indices), 2):
-        first_row, second_row = incorrect_indices[i], incorrect_indices[i+1]
-        temp = df.iloc[first_row].copy()
-        df.iloc[first_row] = df.iloc[second_row]
-        df.iloc[second_row] = temp
-        print("Swapped rows", first_row, second_row)
+    # for i in range(0, len(incorrect_indices), 2):
+    #     first_row, second_row = incorrect_indices[i], incorrect_indices[i+1]
+    #     temp = df.iloc[first_row].copy()
+    #     df.iloc[first_row] = df.iloc[second_row]
+    #     df.iloc[second_row] = temp
+        # print("Swapped rows", first_row, second_row)
     print("--------------------------------------------------")
     # sensor_df.to_csv(f"./data/sensor_{stv_num}.csv", index=True)
 print("Total incorrect indices", sorted(total_incorrect_indices))
