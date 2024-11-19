@@ -5,12 +5,10 @@ stv_num = 10
 bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
-df = df.sort_values(by="timestamp")
+df = df.sort_values(by=["timestamp", "sensor_id"])
 
 # STEP 1
-# check whether the sensor_value of each sensor follows the pattern of 0101010 or not
-# if not then swap
-total_incorrect_indices = []
+# apply row swaps unril sensor_value follows [0,1,0,1,0, ...] pattern
 for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
@@ -25,20 +23,45 @@ for bit, sid in bit_to_sid.items():
             prev_sval = 1 if i==0 else sval_arr[i-1]
 
             if sval_arr[i] == prev_sval:
-                # looping swap until arr follow 0101010 pattern
+                # apply swaps to sval_arr
                 sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
-                # swapped = True
-                print("Swapped", i, i+1)
 
-                first_row, second_row = sensor_df.index[i], sensor_df.index[i+1]
-                temp = df.iloc[first_row].copy()
-                df.iloc[first_row] = df.iloc[second_row]
-                df.iloc[second_row] = temp
+                # apply swaps to df too
+                # but before swapping, check whether the row below has a similar timestamp or not
+                # if there is, swap that entry as well
+                first_row = sensor_df.index[i]
+                second_row = sensor_df.index[i] + 1
+                third_row = sensor_df.index[i+1]
+                fourth_row = sensor_df.index[i+1] + 1
+                print("+++++++++++++++++++++++++Rows", first_row, second_row, third_row, fourth_row)
+
+                # fix logic here to make the swap order thing work
+                if second_row == third_row:
+                    continue
+
+                first_row_timestamp, second_row_timestamp = df["timestamp"].values[first_row], df["timestamp"].values[second_row]
+                if df["timestamp"].values[first_row] == df["timestamp"].values[second_row]:
+                    if df["timestamp"].values[third_row] == df["timestamp"].values[fourth_row]:
+                        swap_order = [3, 4, 1, 2]
+                    else:
+                        swap_order = [3, 1, 2, 4]
+                else:
+                    if df["timestamp"].values[third_row] == df["timestamp"].values[fourth_row]:
+                        swap_order = [3, 4, 2, 1]
+                    else:
+                        swap_order = [3, 2, 1, 4]
+
+                temp = df.iloc[[first_row, second_row, third_row, fourth_row]].copy()
+                df.iloc[first_row] = temp.iloc[swap_order[0]]
+                df.iloc[second_row] = temp.iloc[swap_order[1]]
+                df.iloc[third_row] = temp.iloc[swap_order[2]]
+                df.iloc[fourth_row] = temp.iloc[swap_order[3]]
                 swapped = True
+
+                print("Swapped sensor_value", i, i+1)
                 print("Swapped rows", first_row, second_row)
-                # incorrect_local_indices.append(i)
-                # incorrect_local_indices.append(i+1)
     print("sensor_value END", sval_arr) # print after swaps in array
+    print("--------------------------------------------------")
 
     # incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
     # total_incorrect_indices.extend(incorrect_indices)
@@ -52,11 +75,13 @@ for bit, sid in bit_to_sid.items():
     #     df.iloc[first_row] = df.iloc[second_row]
     #     df.iloc[second_row] = temp
         # print("Swapped rows", first_row, second_row)
-    print("--------------------------------------------------")
     # sensor_df.to_csv(f"./data/sensor_{stv_num}.csv", index=True)
-print("Total incorrect indices", sorted(total_incorrect_indices))
 
 # STEP 2
+# sort rows with the same timestamp based on sensor_id
+# df = df.sort_values(by=["timestamp", "sensor_id"])
+
+# STEP 3
 # calculate sensor_id based on bit position
 
 # make new column "sid" for calculated sensor_id
@@ -79,9 +104,9 @@ for i in range(df.shape[0]):
 
     # insert changed position into sid column
     if changed_bit:
-        # reversed_changed_bit = changed_bit[::-1]
+        reversed_changed_bit = changed_bit[::-1]
         for j in range(len(changed_bit)):
-            df["sid"].values[i+j] = changed_bit[j]
+            df["sid"].values[i+j] = reversed_changed_bit[j]
 
     # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
 
