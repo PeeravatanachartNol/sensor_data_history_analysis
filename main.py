@@ -7,7 +7,7 @@ bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
 df = df.sort_values(by=["timestamp", "sensor_id"])
 
-
+swap_indices = []
 for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
@@ -26,14 +26,18 @@ for bit, sid in bit_to_sid.items():
 
             if sval_arr[i] == prev_sval:
                 # apply swaps to sval_arr
-                sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
                 incorrect_local_indices.append(i)
                 incorrect_local_indices.append(i+1)
+                sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
                 print("Swapped sensor_value", i, i+1)
                 swapped = True
 
     print("sensor_value END", sval_arr)
     print("Incorrect indices local", incorrect_local_indices)
+    # CHECK THIS AGAIN
+    incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
+    print("Incorrect indices", incorrect_indices)
+    swap_indices.extend(incorrect_indices)
 
     # STEP 2
     # map incorrect_local_indices to df rows
@@ -45,43 +49,57 @@ for bit, sid in bit_to_sid.items():
     # 3 and 12 swap would result in the order 3, 1, 2, 4
     # 3 and 1 swap would result in the order 3, 2, 1, 4
 
-    incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
-    print("Incorrect indices", incorrect_indices)
 
     # got the correct indices, now swap the rows
-    
-    # for idx, loc in enumerate(range(0, len(incorrect_local_indices), 2)):
-    #     print(idx, loc)
-    #     first_row = df.index[loc]
-    #     second_row = df.index[loc] + 1
-    #     third_row = df.index[loc+1]
-    #     fourth_row = df.index[loc+1] + 1
+    # for j in range(0, len(incorrect_indices), 2):
+    #     first_row = df.index[incorrect_indices[j]]
+    #     second_row = df.index[incorrect_indices[j]] + 1
+    #     third_row = df.index[incorrect_indices[j]+1]
+    #     fourth_row = df.index[incorrect_indices[j]+1] + 1
     #     print("+++++++++++++++++++++++++Rows", first_row, second_row, third_row, fourth_row)
 
-    #     temp = df.iloc[[first_row, second_row, third_row, fourth_row]].copy()
-    #     df.iloc[first_row] = temp.iloc[2]
+        # temp = df.iloc[[first_row, second_row, third_row, fourth_row]].copy()
+        # df.iloc[first_row] = temp.iloc[2]
 
-    #     if df["timestamp"].values[third_row] == df["timestamp"].values[fourth_row]:
-    #         df.iloc[second_row] = temp.iloc[3]
+        # if df["timestamp"].values[third_row] == df["timestamp"].values[fourth_row]:
+        #     df.iloc[second_row] = temp.iloc[3]
 
-    #         if df["timestamp"].values[first_row] == df["timestamp"].values[second_row]:
-    #             df.iloc[third_row] = temp.iloc[0]
-    #             df.iloc[fourth_row] = temp.iloc[1]
-    #         else:
-    #             df.iloc[third_row] = temp.iloc[1]
-    #             df.iloc[fourth_row] = temp.iloc[0]
-    #     else:
-    #         if df["timestamp"].values[first_row] == df["timestamp"].values[second_row]:
-    #             df.iloc[second_row] = temp.iloc[0]
-    #             df.iloc[third_row] = temp.iloc[1]
-    #         else:
-    #             df.iloc[third_row] = temp.iloc[0]
+        #     if df["timestamp"].values[first_row] == df["timestamp"].values[second_row]:
+        #         df.iloc[third_row] = temp.iloc[0]
+        #         df.iloc[fourth_row] = temp.iloc[1]
+        #     else:
+        #         df.iloc[third_row] = temp.iloc[1]
+        #         df.iloc[fourth_row] = temp.iloc[0]
+        # else:
+        #     if df["timestamp"].values[first_row] == df["timestamp"].values[second_row]:
+        #         df.iloc[second_row] = temp.iloc[0]
+        #         df.iloc[third_row] = temp.iloc[1]
+        #     else:
+        #         df.iloc[third_row] = temp.iloc[0]
 
-    #     print("Swapped rows", first_row, third_row)
-    # print("--------------------------------------------------")
+        # print("Swapped rows", first_row, third_row)
+    print("--------------------------------------------------")
+print("SWAP INDICES", swap_indices)
 
+def swap_rows(df, g1_rows, g2_rows):
+    df_g1 = df.iloc[g1_rows[0]:g1_rows[-1] + 1]
+    df_g2 = df.iloc[g2_rows[0]:g2_rows[-1] + 1]
+    df_beg = df.iloc[:g1_rows[0]]
+    df_mid = df.iloc[g1_rows[-1] + 1:g2_rows[0]]
+    df_end = df.iloc[g2_rows[-1] + 1:]
+    df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end])
+    return df_swapped
 
+# check rows with the same timestamp
+# if there is, swap that entry as well
+for i in range(len(swap_indices)):
+    sensor_time = df.iloc[swap_indices[i]].timestamp
+    # print(swap_indices[i], sensor_time)
+    swap_indices[i] = df[df.timestamp == sensor_time].index.to_list()
+    print(swap_indices[i], sensor_time)
 
+# swap rows
+# for i in range(0, len(swap_indices), 2):
 
     # incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
     # total_incorrect_indices.extend(incorrect_indices)
