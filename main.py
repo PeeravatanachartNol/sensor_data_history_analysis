@@ -6,17 +6,17 @@ bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
 df = df.sort_values(by=["timestamp", "sensor_id"])
-df.insert(0, "original_order", range(0, len(df)))
+# df.insert(0, "original_order", range(0, len(df)))
 
 # ステップ 1
-# [0,1,0,1,0, ...]　のパターンにならないに異常の sensor_value を把握
+# [0,1,0,1,0, ...]　のパターンにならない異常の sensor_value を把握
 # 正しいパターンになるまで swapする列のインデックスを取得
 swap_indices = []
 for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
     print(">>> Sensor ID", sid, "Bit", bit, "<<<")
-    # print("sensor_value", sval_arr)
+    print("sensor_value START", sval_arr)
 
 
     incorrect_local_indices = [] # 各センサーのインデックス
@@ -32,6 +32,8 @@ for bit, sid in bit_to_sid.items():
                 sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
                 # print("Swapしたセンサーのインデックス", i, i+1)
                 swapped = True
+        print("sensor_value END", sval_arr)
+
 
     incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
     print("異常のあるメインインデックス", incorrect_indices)
@@ -51,46 +53,34 @@ print("--------------------------------------------------")
 # ステップ 2
 # 実際に列の swap を行う
 
-# this swap actually uses actual physical index, instead of the desired id
-def swap_rows(df, g1_rows, g2_rows):
-    df_g1 = df.iloc[g1_rows[0]:g1_rows[-1] + 1]
-    df_g2 = df.iloc[g2_rows[0]:g2_rows[-1] + 1]
-    df_beg = df.iloc[:g1_rows[0]]
-    df_mid = df.iloc[g1_rows[-1] + 1:g2_rows[0]]
-    df_end = df.iloc[g2_rows[-1] + 1:]
-    df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
-    return df_swapped
-
+# # swap using index
 # def swap_rows(df, g1_rows, g2_rows):
-#     df_g1 = df.iloc[df.original_order == g1_rows[0]:df.original_order == g1_rows[-1] + 1]
-#     df_g2 = df.iloc[df.original_order == g2_rows[0]:df.original_order == g2_rows[-1] + 1]
-#     df_beg = df.iloc[:df.original_order == g1_rows[0]]
-#     df_mid = df.iloc[df.original_order == g1_rows[-1] + 1:df.original_order == g2_rows[0]]
-#     df_end = df.iloc[df.original_order == g2_rows[-1] + 1:]
+#     print("Swapping rows", g1_rows, g2_rows)
+#     df_g1 = df.iloc[g1_rows[0]:g1_rows[-1] + 1]
+#     df_g2 = df.iloc[g2_rows[0]:g2_rows[-1] + 1]
+#     df_beg = df.iloc[:g1_rows[0]]
+#     df_mid = df.iloc[g1_rows[-1] + 1:g2_rows[0]]
+#     df_end = df.iloc[g2_rows[-1] + 1:]
 #     df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
 #     return df_swapped
+
+# # swap using original_order
+def swap_rows(df, g1_rows, g2_rows):
+    df_g1 = df[(df.original_order >= g1_rows[0]) & (df.original_order < g1_rows[-1] + 1)]
+    df_g2 = df[(df.original_order >= g2_rows[0]) & (df.original_order < g2_rows[-1] + 1)]
+    df_beg = df[df.original_order < g1_rows[0]]
+    df_mid = df[(df.original_order >= g1_rows[-1] + 1) & (df.original_order < g2_rows[0])]
+    df_end = df[df.original_order >= g2_rows[-1] + 1]
+    df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
+    return df_swapped
 
 df_swapped = df
 
 for i in range(0, len(swap_indices), 2):
     df_swapped = swap_rows(df_swapped, swap_indices[i], swap_indices[i+1])
 
-    # incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
-    # total_incorrect_indices.extend(incorrect_indices)
-    # print("Incorrect indices local", incorrect_local_indices)
-    # print("Incorrect indices", incorrect_indices)
-
-    # perform row swaps
-    # for i in range(0, len(incorrect_indices), 2):
-    #     first_row, second_row = incorrect_indices[i], incorrect_indices[i+1]
-    #     temp = df.iloc[first_row].copy()
-    #     df.iloc[first_row] = df.iloc[second_row]
-    #     df.iloc[second_row] = temp
-        # print("Swapped rows", first_row, second_row)
-    # sensor_df.to_csv(f"./data/sensor_{stv_num}.csv", index=True)
-
-# sort rows with the same timestamp based on sensor_id
-# df = df.sort_values(by=["timestamp", "sensor_id"])
+# sort to make sure sensor_id is in order
+df_swapped = df_swapped.sort_values(by=["sensor_id"])
 
 # ステップ 3
 # 実際の sensor_id と計算された sid を比較
@@ -131,11 +121,16 @@ def get_sid(df):
             df["sid_mismatch"].values[j] = "Mismatch"
 
     print(sid_diff_indices)
+    return sid_diff_indices
 
+print("-----------------------------------------------")
 print("sensor_id mismatch BEFORE")
 get_sid(df)
+print("number of mismatches", len(get_sid(df)))
+print("-----------------------------------------------")
 print("sensor_id mismatch AFTER")
 get_sid(df_swapped)
+print("number of mismatches", len(get_sid(df_swapped)))
 
 # write
 df_swapped.to_csv(f"./data/4f_sample_{stv_num}_edited.csv", index=True)
