@@ -64,7 +64,7 @@ print("--------------------------------------------------")
 #     df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
 #     return df_swapped
 
-# # swap using original_order
+# swap using original_order
 def swap_rows(df, g1_rows, g2_rows):
     df_g1 = df[(df.original_order >= g1_rows[0]) & (df.original_order < g1_rows[-1] + 1)]
     df_g2 = df[(df.original_order >= g2_rows[0]) & (df.original_order < g2_rows[-1] + 1)]
@@ -79,8 +79,9 @@ df_swapped = df
 for i in range(0, len(swap_indices), 2):
     df_swapped = swap_rows(df_swapped, swap_indices[i], swap_indices[i+1])
 
-# sort to make sure sensor_id is in order
-df_swapped = df_swapped.sort_values(by=["sensor_id"])
+# ALSO FIND SOMETHING THAT WORKS HERE
+# Sort rows by sensor_id locally within each timestamp group
+# df_swapped = df_swapped.groupby('timestamp', group_keys=False).apply(lambda x: x.sort_values(by='sensor_id'))
 
 # ステップ 3
 # 実際の sensor_id と計算された sid を比較
@@ -108,12 +109,13 @@ def get_sid(df):
         if changed_bit:
             reversed_changed_bit = changed_bit[::-1]
             for j in range(len(changed_bit)):
-                df["sid"].values[i+j] = reversed_changed_bit[j]
+                # df["sid"].values[df.original_order == i+j] = reversed_changed_bit[j]
+                df.loc[df.original_order == i+j, "sid"] = reversed_changed_bit[j] # CHANGE THIS, THIS IS THE KEY
 
         # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
 
     # compare the columns sensor_id and sid
-    sid_diff_arr = (df["sensor_id"] != df["sid"]).tolist()
+    sid_diff_arr = (df["sensor_id"] != df["sid"]).to_list()
     sid_diff_indices = [i for i,x in enumerate(sid_diff_arr) if x is True]
     # print(sid_diff_arr)
     for j in range(len(sid_diff_arr)):
