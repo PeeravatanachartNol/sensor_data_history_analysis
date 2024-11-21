@@ -12,33 +12,30 @@ for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
     sval_arr = sensor_df["sensor_value"].to_list()
     print(">>> Sensor ID", sid, "Bit", bit, "<<<")
-    # print("sensor_value START", sval_arr)
+    # print("sensor_value", sval_arr)
 
     # STEP 1
-    # apply row swaps until sensor_value follows [0,1,0,1,0, ...] pattern
-    # get incorrect indices locally
-    incorrect_local_indices = []
+    # [0,1,0,1,0, ...]　のパターンにならないに異常の sensor_value を把握
+    # [0,1,0,1,0, ...]　になるまで swap
+    incorrect_local_indices = [] # 各センサーのインデックス
     swapped = True
     while swapped:
         swapped = False
-        for i in range(len(sval_arr) - 1): # ignore last term
+        for i in range(len(sval_arr) - 1): #　最後の列は比較しない
             prev_sval = 1 if i==0 else sval_arr[i-1]
 
             if sval_arr[i] == prev_sval:
-                # apply swaps to sval_arr
                 incorrect_local_indices.append(i)
                 incorrect_local_indices.append(i+1)
                 sval_arr[i], sval_arr[i+1] = sval_arr[i+1], sval_arr[i]
-                # print("Swapped sensor_value", i, i+1)
+                # print("Swapしたセンサーのインデックス", i, i+1)
                 swapped = True
 
     # CHECK THIS AGAIN
     incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
-    print("Incorrect indices", incorrect_indices)
+    print("異常のあるメインインデックス", incorrect_indices)
     swap_indices.extend(incorrect_indices)
-
     print("--------------------------------------------------")
-    # print("SWAP INDICES", swap_indices)
 
 def swap_rows(df, g1_rows, g2_rows):
     df_g1 = df.iloc[g1_rows[0]:g1_rows[-1] + 1]
@@ -87,39 +84,43 @@ for i in range(0, len(swap_indices), 2):
 # calculate sensor_id based on bit position
 
 # make new column "sid" for calculated sensor_id
-df_swapped["sid"] = None
 
 def get_status_bin(row):
     return str(df_swapped["status_bin"].values[row])
 
-# find changed bit position(s)
-for i in range(df_swapped.shape[0]):
-    # EDIT THIS TO IGNORE FIRST LINE SINCE FIRST STATUS MAY NOT ALWAYS BE 1111
-    prev_status_bin = "1111111111111111" if i==0 else get_status_bin(i-1)
-    curr_status_bin = get_status_bin(i)
+def get_sid(df):
+    df["sid"] = None
+    # find changed bit position(s)
+    for i in range(df.shape[0]):
+        # EDIT THIS TO IGNORE FIRST LINE SINCE FIRST STATUS MAY NOT ALWAYS BE 1111
+        prev_status_bin = "1111111111111111" if i==0 else get_status_bin(i-1)
+        curr_status_bin = get_status_bin(i)
 
-    # check different bit position
-    changed_bit = []
-    for bit in range(16):
-        if curr_status_bin[bit] != prev_status_bin[bit]:
-            if bit in bit_to_sid:
-                changed_bit.append(bit_to_sid[bit])
+        # check different bit position
+        changed_bit = []
+        for bit in range(16):
+            if curr_status_bin[bit] != prev_status_bin[bit]:
+                if bit in bit_to_sid:
+                    changed_bit.append(bit_to_sid[bit])
 
-    # insert changed position into sid column
-    if changed_bit:
-        reversed_changed_bit = changed_bit[::-1]
-        for j in range(len(changed_bit)):
-            df_swapped["sid"].values[i+j] = reversed_changed_bit[j]
+        # insert changed position into sid column
+        if changed_bit:
+            reversed_changed_bit = changed_bit[::-1]
+            for j in range(len(changed_bit)):
+                df["sid"].values[i+j] = reversed_changed_bit[j]
 
-    # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
+        # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
 
-# compare the columns sensor_id and sid
-sid_diff_arr = (df_swapped["sensor_id"] != df_swapped["sid"]).tolist()
-sid_diff_indices = [i for i,x in enumerate(sid_diff_arr) if x is True]
-print("Rows where calculated sensor_id does not match actual sensor_id:")
-print(sid_diff_indices)
+    # compare the columns sensor_id and sid
+    sid_diff_arr = (df["sensor_id"] != df["sid"]).tolist()
+    sid_diff_indices = [i for i,x in enumerate(sid_diff_arr) if x is True]
+    print(sid_diff_indices)
+
+print("sensor_id mismatch BEFORE")
+get_sid(df)
+print("sensor_id mismatch AFTER")
+get_sid(df_swapped)
 
 # write
 df_swapped.to_csv(f"./data/4f_sample_{stv_num}_edited.csv", index=True)
-print(df_swapped)
 print("----- Wrote to csv -----")
