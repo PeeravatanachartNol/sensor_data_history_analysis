@@ -57,10 +57,11 @@ for i in range(len(swap_indices)):
 print(swap_indices)
 print("--------------------------------------------------")
 df_swapped = df
+
+# STEP 2
 # swap rows, comment these two lines out to see differences
 for i in range(0, len(swap_indices), 2):
     df_swapped = swap_rows(df_swapped, swap_indices[i], swap_indices[i+1])
-
 
     # incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
     # total_incorrect_indices.extend(incorrect_indices)
@@ -76,13 +77,11 @@ for i in range(0, len(swap_indices), 2):
         # print("Swapped rows", first_row, second_row)
     # sensor_df.to_csv(f"./data/sensor_{stv_num}.csv", index=True)
 
-# STEP 2
 # sort rows with the same timestamp based on sensor_id
 # df = df.sort_values(by=["timestamp", "sensor_id"])
 
 # STEP 3
 # calculate sensor_id based on bit position
-
 # make new column "sid" for calculated sensor_id
 
 def get_status_bin(row):
@@ -90,6 +89,7 @@ def get_status_bin(row):
 
 def get_sid(df):
     df["sid"] = None
+    df["sid_mismatch"] = None
     # find changed bit position(s)
     for i in range(df.shape[0]):
         # EDIT THIS TO IGNORE FIRST LINE SINCE FIRST STATUS MAY NOT ALWAYS BE 1111
@@ -114,6 +114,11 @@ def get_sid(df):
     # compare the columns sensor_id and sid
     sid_diff_arr = (df["sensor_id"] != df["sid"]).tolist()
     sid_diff_indices = [i for i,x in enumerate(sid_diff_arr) if x is True]
+    # print(sid_diff_arr)
+    for j in range(len(sid_diff_arr)):
+        if sid_diff_arr[j]:
+            df["sid_mismatch"].values[j] = "Mismatch"
+
     print(sid_diff_indices)
 
 print("sensor_id mismatch BEFORE")
