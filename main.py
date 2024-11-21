@@ -6,7 +6,11 @@ bit_to_sid = bit_to_sid_10 if stv_num == 10 else bit_to_sid_11
 
 df = pd.read_csv(f"./data/4f_sample_{stv_num}.csv", encoding="ISO-8859-1")
 df = df.sort_values(by=["timestamp", "sensor_id"])
+df.insert(0, "original_order", range(0, len(df)))
 
+# ステップ 1
+# [0,1,0,1,0, ...]　のパターンにならないに異常の sensor_value を把握
+# 正しいパターンになるまで swapする列のインデックスを取得
 swap_indices = []
 for bit, sid in bit_to_sid.items():
     sensor_df = df[df["sensor_id"] == f"{sid}"]
@@ -14,9 +18,7 @@ for bit, sid in bit_to_sid.items():
     print(">>> Sensor ID", sid, "Bit", bit, "<<<")
     # print("sensor_value", sval_arr)
 
-    # STEP 1
-    # [0,1,0,1,0, ...]　のパターンにならないに異常の sensor_value を把握
-    # [0,1,0,1,0, ...]　になるまで swap
+
     incorrect_local_indices = [] # 各センサーのインデックス
     swapped = True
     while swapped:
@@ -31,12 +33,25 @@ for bit, sid in bit_to_sid.items():
                 # print("Swapしたセンサーのインデックス", i, i+1)
                 swapped = True
 
-    # CHECK THIS AGAIN
     incorrect_indices = sensor_df.index[incorrect_local_indices].to_list()
     print("異常のあるメインインデックス", incorrect_indices)
     swap_indices.extend(incorrect_indices)
     print("--------------------------------------------------")
 
+# 同じ timestamp の列も把握し、swapする列のインデックスに追加
+print("Indices to swap, timestamp")
+for i in range(len(swap_indices)):
+    sensor_time = df.iloc[swap_indices[i]].timestamp
+    swap_indices[i] = df[df.timestamp == sensor_time].index.to_list()
+    print(swap_indices[i], sensor_time)
+
+print(swap_indices)
+print("--------------------------------------------------")
+
+# ステップ 2
+# 実際に列の swap を行う
+
+# this swap actually uses actual physical index, instead of the desired id
 def swap_rows(df, g1_rows, g2_rows):
     df_g1 = df.iloc[g1_rows[0]:g1_rows[-1] + 1]
     df_g2 = df.iloc[g2_rows[0]:g2_rows[-1] + 1]
@@ -46,20 +61,17 @@ def swap_rows(df, g1_rows, g2_rows):
     df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
     return df_swapped
 
-# check rows with the same timestamp
-# if there is, swap that entry as well
-print("Indices to swap, timestamp")
-for i in range(len(swap_indices)):
-    sensor_time = df.iloc[swap_indices[i]].timestamp
-    swap_indices[i] = df[df.timestamp == sensor_time].index.to_list()
-    print(swap_indices[i], sensor_time)
+# def swap_rows(df, g1_rows, g2_rows):
+#     df_g1 = df.iloc[df.original_order == g1_rows[0]:df.original_order == g1_rows[-1] + 1]
+#     df_g2 = df.iloc[df.original_order == g2_rows[0]:df.original_order == g2_rows[-1] + 1]
+#     df_beg = df.iloc[:df.original_order == g1_rows[0]]
+#     df_mid = df.iloc[df.original_order == g1_rows[-1] + 1:df.original_order == g2_rows[0]]
+#     df_end = df.iloc[df.original_order == g2_rows[-1] + 1:]
+#     df_swapped = pd.concat([df_beg, df_g2, df_mid, df_g1, df_end], ignore_index=False)
+#     return df_swapped
 
-print(swap_indices)
-print("--------------------------------------------------")
 df_swapped = df
 
-# STEP 2
-# swap rows, comment these two lines out to see differences
 for i in range(0, len(swap_indices), 2):
     df_swapped = swap_rows(df_swapped, swap_indices[i], swap_indices[i+1])
 
@@ -80,10 +92,9 @@ for i in range(0, len(swap_indices), 2):
 # sort rows with the same timestamp based on sensor_id
 # df = df.sort_values(by=["timestamp", "sensor_id"])
 
-# STEP 3
-# calculate sensor_id based on bit position
-# make new column "sid" for calculated sensor_id
-
+# ステップ 3
+# 実際の sensor_id と計算された sid を比較
+# 一致したら、セーフ
 def get_status_bin(row):
     return str(df_swapped["status_bin"].values[row])
 
