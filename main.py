@@ -95,11 +95,6 @@ def get_cumsum_from_sensor_id(df):
 # 実際の sensor_id と計算された sid を比較
 # 一致したら、セーフ
 
-# # MIGHT NEED TO CHANGE THIS
-# def get_status_bin(df, row):
-#     # return str(df_swapped.loc[original_order, "status_bin"])
-#     return str(df.loc[row, "status_bin"])
-
 # def get_sid(df):
 #     df["sid"] = None
 #     df["sid_mismatch"] = None
@@ -155,17 +150,33 @@ def get_cumsum_from_sensor_id(df):
 # get_mismatch(df_swapped)
 # print("number of mismatches", len(get_mismatch(df_swapped)))
 
+def get_status_bin(df, original_order):
+    # return str(df.loc[df["original_order"] == original_order, "status_bin"])
+    return str(df.loc[original_order, "status_bin"])
+
 get_cumsum_from_sensor_id(df_swapped)
 
 df_swapped["sid"] = None
 df_swapped["sid_mismatch"] = None
+df_swapped["idx_shift"] = None
 
 changed_bit = []
 for i in range(df_swapped.shape[0]):
-    prev_bin = "1111111111111111" if i==0 else str(df_swapped.loc[i-1, "status_bin"])
-    curr_bin = str(df_swapped.loc[i, "status_bin"])
-    prev_timestamp = None if i==0 else df_swapped.loc[i-1, "timestamp"]
     curr_timestamp = df_swapped.loc[i, "timestamp"]
+    prev_timestamp = None if i==0 else df_swapped.loc[i-1, "timestamp"]
+    # 3つ前の行のtimestampを取得
+    idx_shift = 0
+    for j in range(1, 4):
+        if i - j >= 0:
+            prev_timestamp = df_swapped.loc[i-j, "timestamp"]
+            if curr_timestamp != prev_timestamp:
+                idx_shift = j
+                break
+
+    prev_bin = "1111111111111111" if i==0 else str(df_swapped.loc[i-idx_shift, "status_bin"])
+    curr_bin = str(df_swapped.loc[i, "status_bin"])
+    df_swapped.loc[i, "prev_bin"] = prev_bin
+    df_swapped.loc[i, "curr_bin"] = curr_bin
 
     changed_bit_local = []
     for bit in range(16):
@@ -176,9 +187,12 @@ for i in range(df_swapped.shape[0]):
 
     if changed_bit_local:
         df_swapped.loc[i, "sid"] = changed_bit[i][0]
-    else:
-        df_swapped.loc[i, "sid"] = "n"
+        df_swapped.loc[i, "idx_shift"] = idx_shift
+    # else:
+    #     df_swapped.loc[i, "sid"] = None if i==0 else changed_bit[i-1][0]
 
+
+    print(i, changed_bit[i])
 
 
     # if prev_bin == curr_bin:
