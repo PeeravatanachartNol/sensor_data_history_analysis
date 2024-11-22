@@ -120,25 +120,29 @@ def get_sid(df):
 
         # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
 
+def get_mismatch(df):
     # compare the columns sensor_id and sid
-    sid_diff_arr = (df["sensor_id"] != df["sid"]).to_list()
-    sid_diff_indices = [i for i,x in enumerate(sid_diff_arr) if x is True]
-    # print(sid_diff_arr)
-    for j in range(len(sid_diff_arr)):
-        if sid_diff_arr[j]:
+    mismatch_arr = (df["sensor_id"] != df["sid"]).to_list()
+    mismatch_indices = [i for i,x in enumerate(mismatch_arr) if x is True]
+    # print(mismatch_arr)
+    for j in range(len(mismatch_arr)):
+        if mismatch_arr[j]:
             df["sid_mismatch"].values[j] = "Mismatch"
 
-    print(sid_diff_indices)
-    return sid_diff_indices
+    print(mismatch_indices)
+    return mismatch_indices
 
 print("-----------------------------------------------")
 print("sensor_id mismatch BEFORE")
 get_sid(df)
-print("number of mismatches", len(get_sid(df)))
+get_mismatch(df)
+print("number of mismatches", len(get_mismatch(df)))
+
 print("-----------------------------------------------")
 print("sensor_id mismatch AFTER")
 get_sid(df_swapped)
-print("number of mismatches", len(get_sid(df_swapped)))
+get_mismatch(df_swapped)
+print("number of mismatches", len(get_mismatch(df_swapped)))
 
 # write
 df_swapped.to_csv(f"./data/4f_sample_{stv_num}_edited.csv", index=True)
