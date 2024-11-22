@@ -83,46 +83,6 @@ for i in range(0, len(swap_indices), 2):
 # Sort rows by sensor_id locally within each timestamp group
 # df_swapped = df_swapped.groupby('timestamp', group_keys=False).apply(lambda x: x.sort_values(by='sensor_id'))
 
-
-# ステップ 3
-# 実際の sensor_id と計算された sid を比較
-# 一致したら、セーフ
-
-# MIGHT NEED TO CHANGE THIS
-def get_status_bin(df, row):
-    # return str(df_swapped.loc[original_order, "status_bin"])
-    return str(df.loc[row, "status_bin"])
-
-def get_sid(df):
-    df["sid"] = None
-    df["sid_mismatch"] = None
-    # find changed bit position(s)
-    changed_bit = []
-    for i in range(df.shape[0]):
-        # EDIT THIS TO IGNORE FIRST LINE SINCE FIRST STATUS MAY NOT ALWAYS BE 1111
-        prev_status_bin = "1111111111111111" if i==0 else get_status_bin(df_swapped, i-1)
-        curr_status_bin = get_status_bin(df_swapped, i)
-
-        # check different bit position
-        # START CHECKING FROM HERE I GUESS
-        changed_bit_local = []
-        for bit in range(16):
-            if curr_status_bin[bit] != prev_status_bin[bit]:
-                if bit in bit_to_sid:
-                    changed_bit_local.append(bit_to_sid[bit])
-        print(i, changed_bit_local)
-
-        # insert changed position into sid column
-        changed_bit.append(changed_bit_local)
-    print("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL")
-    print(changed_bit[:60])
-    print(len(changed_bit), df.shape[0])
-    # for j in range(len(changed_bit)):
-    #     df.loc[i+j, "sid"] = changed_bit[j]
-
-
-        # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
-
 def get_cumsum_from_sensor_id(df):
     # create column "timestamp_shifted" to shift timestamp value up by one
     df['timestamp_shift'] = df['timestamp'].shift(1)
@@ -130,32 +90,110 @@ def get_cumsum_from_sensor_id(df):
     # df = df.drop(columns=['timestamp_shift'])
     df = df.sort_values(by=['group', 'sensor_id'])
 
-def get_mismatch(df):
-    # compare the columns sensor_id and sid
-    mismatch_arr = (df["sensor_id"] != df["sid"]).to_list()
-    mismatch_indices = [i for i,x in enumerate(mismatch_arr) if x is True]
-    # print(mismatch_arr)
-    for j in range(len(mismatch_arr)):
-        if mismatch_arr[j]:
-            df["sid_mismatch"].values[j] = "Mismatch"
 
-    print(mismatch_indices)
-    return mismatch_indices
+# ステップ 3
+# 実際の sensor_id と計算された sid を比較
+# 一致したら、セーフ
 
-print("-----------------------------------------------")
-print("sensor_id mismatch BEFORE")
-get_sid(df)
-# get_mismatch(df)
-# print("number of mismatches", len(get_mismatch(df)))
+# # MIGHT NEED TO CHANGE THIS
+# def get_status_bin(df, row):
+#     # return str(df_swapped.loc[original_order, "status_bin"])
+#     return str(df.loc[row, "status_bin"])
 
-print("-----------------------------------------------")
-print("sensor_id mismatch AFTER")
+# def get_sid(df):
+#     df["sid"] = None
+#     df["sid_mismatch"] = None
+#     # find changed bit position(s)
+#     changed_bit = []
+#     for i in range(df.shape[0]):
+#         # EDIT THIS TO IGNORE FIRST LINE SINCE FIRST STATUS MAY NOT ALWAYS BE 1111
+#         prev_status_bin = "1111111111111111" if i==0 else get_status_bin(df_swapped, i-1)
+#         curr_status_bin = get_status_bin(df_swapped, i)
 
-get_cumsum_from_sensor_id(df_swapped)
-get_sid(df_swapped)
+#         # check different bit position
+#         # START CHECKING FROM HERE I GUESS
+#         changed_bit_local = []
+#         for bit in range(16):
+#             if curr_status_bin[bit] != prev_status_bin[bit]:
+#                 if bit in bit_to_sid:
+#                     changed_bit_local.append(bit_to_sid[bit])
+#         print(i, changed_bit_local)
+
+#         # insert changed position into sid column
+#         changed_bit.append(changed_bit_local)
+#     print("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL")
+#     print(changed_bit[:60])
+#     print(len(changed_bit), df.shape[0])
+#     # for j in range(len(changed_bit)):
+#     #     df.loc[i+j, "sid"] = changed_bit[j]
+
+
+#         # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
+
+# def get_mismatch(df):
+#     # compare the columns sensor_id and sid
+#     mismatch_arr = (df["sensor_id"] != df["sid"]).to_list()
+#     mismatch_indices = [i for i,x in enumerate(mismatch_arr) if x is True]
+#     # print(mismatch_arr)
+#     for j in range(len(mismatch_arr)):
+#         if mismatch_arr[j]:
+#             df["sid_mismatch"].values[j] = "Mismatch"
+
+#     print(mismatch_indices)
+#     return mismatch_indices
+
+# print("-----------------------------------------------")
+# print("sensor_id mismatch BEFORE")
+# # get_sid(df)
+# # get_mismatch(df)
+# # print("number of mismatches", len(get_mismatch(df)))
+
+# print("-----------------------------------------------")
+# print("sensor_id mismatch AFTER")
+
+# get_sid(df_swapped)
 # get_mismatch(df_swapped)
 # print("number of mismatches", len(get_mismatch(df_swapped)))
 
+get_cumsum_from_sensor_id(df_swapped)
+
+df_swapped["sid"] = None
+df_swapped["sid_mismatch"] = None
+
+changed_bit = []
+for i in range(df_swapped.shape[0]):
+    prev_bin = "1111111111111111" if i==0 else str(df_swapped.loc[i-1, "status_bin"])
+    curr_bin = str(df_swapped.loc[i, "status_bin"])
+    prev_timestamp = None if i==0 else df_swapped.loc[i-1, "timestamp"]
+    curr_timestamp = df_swapped.loc[i, "timestamp"]
+
+    changed_bit_local = []
+    for bit in range(16):
+        if prev_bin[bit] != curr_bin[bit]:
+            if bit in bit_to_sid:
+                changed_bit_local.append(bit_to_sid[bit])
+    changed_bit.append(changed_bit_local)
+
+    if changed_bit_local:
+        df_swapped.loc[i, "sid"] = changed_bit[i][0]
+    else:
+        df_swapped.loc[i, "sid"] = "n"
+
+
+
+    # if prev_bin == curr_bin:
+    #     df_swapped.loc[i, "sid"] = changed_bit_local[1]
+
+    # for j in range(len(changed_bit_local)):
+        # if changed_bit_local:
+        # df_swapped.loc[i+j, "sid"] = changed_bit_local[j]
+    # if prev_timestamp != curr_timestamp:
+    #     df_swapped.loc[i, "sid"] = changed_bit_local
+    # else:
+    #     df_swapped.loc[i, "sid"] = changed_bit_local[0]
+
+    # if prev_sid != curr_sid:
+    #     df_swapped.loc[i, "sid"] = "kekw"
 # write
 df_swapped.to_csv(f"./data/4f_sample_{stv_num}_edited.csv", index=True)
 print("----- Wrote to csv -----")
