@@ -83,6 +83,12 @@ for i in range(0, len(swap_indices), 2):
 # Sort rows by sensor_id locally within each timestamp group
 # df_swapped = df_swapped.groupby('timestamp', group_keys=False).apply(lambda x: x.sort_values(by='sensor_id'))
 
+# create column "timestamp_shifted" to shift timestamp value up by one
+df_swapped['timestamp_shift'] = df_swapped['timestamp'].shift(1)
+df_swapped['group'] = (df_swapped['timestamp'] != df_swapped['timestamp_shift']).cumsum()
+# df_swapped = df_swapped.drop(columns=['timestamp_shift'])
+df_swapped = df_swapped.sort_values(by=['group', 'sensor_id'])
+
 # ステップ 3
 # 実際の sensor_id と計算された sid を比較
 # 一致したら、セーフ
@@ -110,7 +116,7 @@ def get_sid(df):
             reversed_changed_bit = changed_bit[::-1]
             for j in range(len(changed_bit)):
                 # df["sid"].values[df.original_order == i+j] = reversed_changed_bit[j]
-                df.loc[df.original_order == i+j, "sid"] = reversed_changed_bit[j] # CHANGE THIS, THIS IS THE KEY
+                df.loc[df.original_order == i+j, "sid"] = changed_bit[j] # CHANGE THIS, THIS IS THE KEY
 
         # print(f"{prev_status_bin}, {curr_status_bin}", changed_bit)
 
