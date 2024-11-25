@@ -99,3 +99,4 @@ for i in range(df.shape[0]):
 
 df = df.drop(columns=["original_order", "timestamp_shift", "time_is_diff", "group", "group_count", "changed_bits", "changed_bits_len", "duplicate_count", "remove_extra_rows", "remove_all_rows", "add_rows"])
 df.to_csv(f"./data/new.csv", index=False)
+print("新しいcsvを作成しました")
